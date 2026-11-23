@@ -1,0 +1,31 @@
+groups:
+    - name: vmeste
+      rules:
+          - alert: VmesteApiUnavailable
+            expr: up{job="vmeste-api"} == 0 or absent(up{job="vmeste-api"})
+            for: 1m
+            labels:
+                severity: critical
+            annotations:
+                summary: Prometheus не получает метрики API
+          - alert: VmesteGroupSnapshotStale
+            expr: (time() - vmeste_group_snapshot_last_success_timestamp_seconds{job="vmeste-api"} > 60) and on (job, instance) (up == 1)
+            for: 1m
+            labels:
+                severity: warning
+            annotations:
+                summary: API отвечает, но статистика сборов из PostgreSQL устарела
+          - alert: VmesteOverdueGroups
+            expr: (vmeste_groups_overdue{job="vmeste-api"} > 0) and on (job, instance) (time() - vmeste_group_snapshot_last_success_timestamp_seconds < 60)
+            for: 1m
+            labels:
+                severity: warning
+            annotations:
+                summary: В базе остаются открытые сборы с истёкшим дедлайном
+          - alert: VmesteExpirationFailed
+            expr: (increase(vmeste_expiration_failures_total{job="vmeste-api"}[5m]) > 0 or (time() - vmeste_expiration_last_success_timestamp_seconds{job="vmeste-api"} > 60)) and on (job, instance) (up == 1)
+            for: 15s
+            labels:
+                severity: critical
+            annotations:
+                summary: Сбой закрытия просроченных сборов, тестовые возвраты могут задержаться

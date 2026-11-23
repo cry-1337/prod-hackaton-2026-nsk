@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsTestProject>true</IsTestProject>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="../../src/Backend.Application/Backend.Application.csproj" />
+        <ProjectReference Include="../../src/Backend.Domain/Backend.Domain.csproj" />
+        <PackageReference Include="JunitXml.TestLogger" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    </ItemGroup>
+</Project>

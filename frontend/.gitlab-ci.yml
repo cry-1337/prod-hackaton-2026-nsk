@@ -1,0 +1,63 @@
+include:
+    - project: pipelines/pipelines
+      ref: master
+      file:
+          - /jobs/spirit.yaml
+          - /jobs/build.yaml
+          - /jobs/rules.yaml
+
+workflow:
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+          when: never
+        - when: always
+
+stages:
+    - test
+    - build
+    - deploy
+
+variables:
+    DOCKER_ARTIFACTORY_REGISTRY: registry.spirit.t-education.com
+    IMAGE_NAME: ${DOCKER_ARTIFACTORY_REGISTRY}/${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
+    DEPLOY_VM: "81.26.184.183"
+
+.production_branch:
+    rules:
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+test:
+    stage: test
+    image: node:22-bookworm-slim
+    rules:
+        - when: on_success
+    script:
+        - npm ci --no-audit --no-fund
+        - npm run lint
+        - npm test -- --reporter=default --reporter=junit --outputFile.junit=vitest.junit.xml
+        - npm run build
+
+    artifacts:
+        when: always
+        reports:
+            junit: vitest.junit.xml
+
+build:image:
+    needs: ["test"]
+    extends:
+        - .dp_build
+        - .production_branch
+
+deploy:vm:
+    stage: deploy
+    extends: .production_branch
+    needs: ["build:image"]
+    image: alpine:3.22
+    resource_group: production
+    environment: production
+    before_script:
+        - apk add --no-cache ca-certificates curl openssh-client
+    script:
+        - sh deploy/deploy.sh

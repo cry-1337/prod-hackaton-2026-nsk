@@ -1,0 +1,10 @@
+:8080 {
+    root * /srv
+
+    @navigation {
+        method GET HEAD
+        header Accept *text/html*
+    }
+    try_files @navigation {path} /index.html
+    file_server
+}

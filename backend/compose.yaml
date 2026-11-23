@@ -1,0 +1,136 @@
+services:
+    api:
+        build: .
+        environment:
+            ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+            ASPNETCORE_HTTP_PORTS: "8080"
+            ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=backend;Username=backend"
+            PGPASSWORD: ${POSTGRES_PASSWORD:-backend_dev}
+            ConnectionStrings__Redis: "redis:6379,abortConnect=false"
+            Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+            Database__ApplyMigrationsOnStartup: "true"
+            Invitations__UrlTemplate: '${INVITATION_URL_TEMPLATE:-}'
+            Storage__PublicBucketUrl: "${MINIO_PUBLIC_BUCKET_URL:-http://localhost:${MINIO_PORT:-9000}/catalog}"
+        ports:
+            - "127.0.0.1:${API_PORT:-5080}:8080"
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            minio-init:
+                condition: service_completed_successfully
+        healthcheck:
+            test:
+                - CMD
+                - bash
+                - -ec
+                - |
+                    exec 3<>/dev/tcp/127.0.0.1/8080
+                    printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+                    read -r _ status _ <&3
+                    test "$$status" = 200
+            interval: 3s
+            timeout: 2s
+            retries: 20
+
+    prometheus:
+        image: prom/prometheus:v3.13.5
+        environment:
+            SAGE_ENABLED: "${SAGE_ENABLED:-false}"
+            SAGE_REMOTE_WRITE_URL: "${SAGE_REMOTE_WRITE_URL:-https://sage.spirit.t-education.com/frost_remote_write/api/v1/write}"
+            SAGE_API_KEY: "${SAGE_API_KEY:-}"
+            SAGE_GROUP: "${SAGE_GROUP:-hack-ovb-02}"
+            SAGE_SYSTEM: "${SAGE_SYSTEM:-vmeste-backend}"
+            SAGE_ENVIRONMENT: "${SAGE_ENVIRONMENT:-dev}"
+            SAGE_DATACENTER: "${SAGE_DATACENTER:-local}"
+        entrypoint: ["/bin/sh", "/etc/prometheus/start.sh"]
+        ports:
+            - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+        volumes:
+            - ./infra/monitoring/prometheus:/etc/prometheus:ro
+            - prometheus-data:/prometheus
+        healthcheck:
+            test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+            interval: 10s
+            timeout: 3s
+            retries: 12
+
+    grafana:
+        image: grafana/grafana:13.3.1
+        ports:
+            - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+        environment:
+            GF_AUTH_ANONYMOUS_ENABLED: "true"
+            GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+            GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+            GF_USERS_ALLOW_SIGN_UP: "false"
+            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/vmeste.json
+        volumes:
+            - ./infra/monitoring/grafana/datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+            - ./infra/monitoring/grafana/provider.yml:/etc/grafana/provisioning/dashboards/vmeste.yml:ro
+            - ./infra/monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+            - grafana-data:/var/lib/grafana
+        healthcheck:
+            test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+            interval: 10s
+            timeout: 3s
+            retries: 12
+
+    postgres:
+        image: postgres:17-alpine
+        environment:
+            POSTGRES_DB: backend
+            POSTGRES_USER: backend
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backend_dev}
+        ports:
+            - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "backend", "-d", "backend"]
+            interval: 2s
+            timeout: 3s
+            retries: 20
+
+    redis:
+        image: redis:7-alpine
+        ports:
+            - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+        tmpfs:
+            - /data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 2s
+            timeout: 3s
+            retries: 20
+
+    minio:
+        build:
+            context: ./infra/minio
+            target: server
+        command: ["server", "/data", "--address", ":9000"]
+        environment:
+            MINIO_ROOT_USER: ${MINIO_ROOT_USER:-backend_minio}
+            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-backend_minio_dev}
+            MINIO_BROWSER: "off"
+        ports:
+            - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+        volumes:
+            - minio-data:/data
+
+    minio-init:
+        build:
+            context: ./infra/minio
+            target: init
+        depends_on:
+            - minio
+        environment:
+            MINIO_ROOT_USER: ${MINIO_ROOT_USER:-backend_minio}
+            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-backend_minio_dev}
+
+volumes:
+    postgres-data:
+    minio-data:
+    prometheus-data:
+    grafana-data:

@@ -1,0 +1,16 @@
+services:
+    frontend:
+        image: ${IMAGE_NAME:?Set IMAGE_NAME}
+        restart: unless-stopped
+        networks:
+            - web
+        healthcheck:
+            test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+            interval: 5s
+            timeout: 3s
+            retries: 12
+
+networks:
+    web:
+        external: true
+        name: vmeste-web

@@ -1,0 +1,98 @@
+include:
+    - project: pipelines/pipelines
+      ref: master
+      file:
+          - /jobs/spirit.yaml
+          - /jobs/build.yaml
+          - /jobs/rules.yaml
+
+workflow:
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+          when: never
+        - if: '$CI_COMMIT_BRANCH'
+
+stages:
+    - test
+    - mirror
+    - build
+    - deploy
+
+variables:
+    DOCKER_ARTIFACTORY_REGISTRY: registry.spirit.t-education.com
+    IMAGE_NAME: ${DOCKER_ARTIFACTORY_REGISTRY}/${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
+    DEPLOY_VM: "81.26.184.183"
+
+.production_branch:
+    rules:
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+test:backend:
+    stage: test
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH'
+    services:
+        - name: postgres:17-alpine
+          alias: postgres
+        - name: redis:7-alpine
+          alias: redis
+    variables:
+        TEST_REPORT_DIR: test-reports
+        POSTGRES_DB: backend
+        POSTGRES_USER: backend
+        POSTGRES_PASSWORD: ci-test-password
+        PGHOST: postgres
+        PGUSER: backend
+        PGDATABASE: backend
+        PGPASSWORD: $POSTGRES_PASSWORD
+        ConnectionStrings__Postgres: Host=postgres;Database=backend;Username=backend
+        ConnectionStrings__Redis: redis:6379,abortConnect=false
+        Database__ApplyMigrationsOnStartup: "true"
+        ASPNETCORE_URLS: http://127.0.0.1:5080
+    before_script:
+        - apt-get update -qq && apt-get install -y --no-install-recommends python3 python3-pytest python3-websocket postgresql-client
+    script:
+        - python3 tests/run_tests.py
+    artifacts:
+        when: always
+        reports:
+            junit: test-reports/*.xml
+
+mirror:dotnet:
+    stage: mirror
+    extends: .production_branch
+    image:
+        name: quay.io/skopeo/stable:v1.19.0
+        entrypoint: [""]
+    script:
+        - |
+            mirror_dir=$(mktemp -d)
+            trap 'rm -rf "$mirror_dir"' EXIT
+
+            sh deploy/registry-auth.sh "$mirror_dir"
+            sh deploy/mirror-dotnet.sh "$mirror_dir" mirrored-bases.env
+    artifacts:
+        reports:
+            dotenv: mirrored-bases.env
+
+build:image:
+    stage: build
+    needs: ["mirror:dotnet"]
+    extends:
+        - .dp_build
+        - .production_branch
+
+deploy:vm:
+    stage: deploy
+    needs: ["build:image"]
+    extends: .production_branch
+    image: alpine:3.22
+    resource_group: production
+    environment: production
+    before_script:
+        - apk add --no-cache ca-certificates curl openssh-client
+    script:
+        - sh deploy/deploy.sh

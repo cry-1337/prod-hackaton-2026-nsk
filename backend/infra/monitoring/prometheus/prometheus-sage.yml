@@ -1,0 +1,17 @@
+
+remote_write:
+    - url: '__SAGE_REMOTE_WRITE_URL__'
+      authorization:
+          type: Bearer
+          credentials_file: sage-api-key
+      queue_config:
+          max_samples_per_send: 1000
+      write_relabel_configs:
+          - target_label: group
+            replacement: '__SAGE_GROUP__'
+          - target_label: system
+            replacement: '__SAGE_SYSTEM__'
+          - target_label: env
+            replacement: '__SAGE_ENVIRONMENT__'
+          - target_label: dc
+            replacement: '__SAGE_DATACENTER__'

@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+    - name: Вместе
+      orgId: 1
+      folder: Вместе
+      type: file
+      allowUiUpdates: false
+      options:
+          path: /etc/grafana/dashboards

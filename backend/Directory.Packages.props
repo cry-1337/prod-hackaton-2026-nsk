@@ -1,0 +1,33 @@
+<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <Microsoft10Version>10.0.15</Microsoft10Version>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageVersion Include="BCrypt.Net-Next" Version="4.2.1" />
+        <PackageVersion Include="FluentValidation" Version="12.2.0" />
+        <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+        <PackageVersion Include="JunitXml.TestLogger" Version="7.0.2" />
+        <PackageVersion Include="Mapster" Version="10.0.14" />
+        <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
+        <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
+        <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="$(Microsoft10Version)" />
+        <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+        <PackageVersion Include="prometheus-net" Version="8.2.1" />
+        <PackageVersion Include="prometheus-net.AspNetCore" Version="8.2.1" />
+        <PackageVersion Include="Scalar.AspNetCore" Version="3.1.1" />
+        <PackageVersion Include="Serilog" Version="4.4.0" />
+        <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+        <PackageVersion Include="xunit" Version="2.9.3" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    </ItemGroup>
+</Project>

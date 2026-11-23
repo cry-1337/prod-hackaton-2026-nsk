@@ -1,0 +1,2 @@
+infra/minio/init.sh text eol=lf
+infra/monitoring/prometheus/start.sh text eol=lf
